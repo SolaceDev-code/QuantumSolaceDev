@@ -1,0 +1,238 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Line Breaks → &lt;br&gt; Converter</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            margin: 0;
+            padding: 24px;
+            line-height: 1.4;
+        }
+
+        .wrap {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: grid;
+            gap: 16px;
+        }
+
+        h1 {
+            font-size: 18px;
+            margin: 0 0 8px;
+        }
+
+        .grid {
+            display: grid;
+            gap: 16px;
+            grid-template-columns: 1fr;
+        }
+
+        @media (min-width: 900px) {
+            .grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .card {
+            border: 1px solid rgba(127,127,127,.35);
+            border-radius: 12px;
+            padding: 14px;
+            background: rgba(127,127,127,.06);
+        }
+
+        label {
+            font-weight: 600;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 260px;
+            resize: vertical;
+            font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(127,127,127,.45);
+            background: transparent;
+            box-sizing: border-box;
+        }
+
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        button {
+            border: 1px solid rgba(127,127,127,.55);
+            background: rgba(127,127,127,.12);
+            padding: 8px 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+            button:active {
+                transform: translateY(1px);
+            }
+
+        .opts {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .opt {
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+            user-select: none;
+        }
+
+        .preview {
+            border: 1px dashed rgba(127,127,127,.55);
+            border-radius: 10px;
+            padding: 10px;
+            min-height: 260px;
+            background: rgba(127,127,127,.06);
+            overflow: auto;
+            white-space: normal;
+        }
+
+        .hint {
+            opacity: .8;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+
+        .toast {
+            font-size: 12px;
+            opacity: .9;
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div>
+            <h1>Convert newlines (CR/LF) to <code>&lt;br&gt;</code></h1>
+            <div class="hint">Replaces Windows <code>\r\n</code>, old Mac <code>\r</code>, and Unix <code>\n</code> with <code>&lt;br&gt;</code>.</div>
+        </div>
+
+        <div class="row opts card">
+            <label class="opt">
+                <input id="escapeHtml" type="checkbox" checked>
+                Escape HTML in input (recommended)
+            </label>
+            <label class="opt">
+                <input id="trimEnds" type="checkbox" checked>
+                Trim leading/trailing whitespace
+            </label>
+            <label class="opt">
+                <input id="live" type="checkbox" checked>
+                Live update
+            </label>
+
+            <div style="flex:1"></div>
+
+            <button id="convertBtn" type="button">Convert</button>
+            <button id="copyBtn" type="button">Copy output</button>
+            <span id="toast" class="toast"></span>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <label for="inputText">Input text</label>
+                <textarea id="inputText" placeholder="Paste your multi-line text here..."></textarea>
+            </div>
+
+            <div class="card">
+                <label for="outputText">Output (single block with &lt;br&gt;)</label>
+                <textarea id="outputText" readonly placeholder="Converted text will appear here..."></textarea>
+
+                <div class="hint" style="margin-top:12px;">
+                    Preview (renders the output as HTML):
+                </div>
+                <div id="preview" class="preview"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const inputText = document.getElementById("inputText");
+        const outputText = document.getElementById("outputText");
+        const preview = document.getElementById("preview");
+        const escapeHtml = document.getElementById("escapeHtml");
+        const trimEnds = document.getElementById("trimEnds");
+        const live = document.getElementById("live");
+        const toast = document.getElementById("toast");
+
+        function htmlEscape(s) {
+            return s
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#39;");
+        }
+
+        function convert() {
+            let text = inputText.value;
+
+            // Treat literal "%r" as a newline (and "%R" as a blank line)
+            text = text.replace(/%R/g, "\n\n");
+            text = text.replace(/%r/g, "\n");
+
+            // Normalize all newline styles to \n
+            text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+            if (trimEnds.checked) text = text.trim();
+            if (escapeHtml.checked) text = htmlEscape(text);
+
+            // Replace newlines with <br>
+            const out = text.replace(/\n/g, "<br>");
+
+            outputText.value = out;
+
+            // Render preview as HTML (safe if escaping is enabled)
+            preview.innerHTML = out;
+        }
+
+        function showToast(msg) {
+            toast.textContent = msg;
+            clearTimeout(showToast._t);
+            showToast._t = setTimeout(() => (toast.textContent = ""), 1500);
+        }
+
+        document.getElementById("convertBtn").addEventListener("click", convert);
+
+        inputText.addEventListener("input", () => {
+            if (live.checked) convert();
+        });
+
+        document.getElementById("copyBtn").addEventListener("click", async () => {
+            try {
+                await navigator.clipboard.writeText(outputText.value || "");
+                showToast("Copied!");
+            } catch {
+                // Fallback for older browsers
+                outputText.focus();
+                outputText.select();
+                document.execCommand("copy");
+                showToast("Copied!");
+            }
+        });
+
+        // Initial run
+        convert();
+    </script>
+</body>
+</html>
